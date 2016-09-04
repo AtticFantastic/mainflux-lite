@@ -16,18 +16,13 @@ import (
 
 	"github.com/mainflux/mainflux-lite/db"
 	"github.com/mainflux/mainflux-lite/models"
+	"github.com/mainflux/mainflux-lite/clients"
 
 	"github.com/satori/go.uuid"
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/kataras/iris"
-	"github.com/krylovsk/gosenml"
 )
-
-type ChannelWriteStatus struct {
-	Nb int
-	Str string
-}
 
 /** == Functions == */
 
@@ -118,93 +113,6 @@ func GetChannel(ctx *iris.Context) {
 	ctx.JSON(iris.StatusOK, &result)
 }
 
-
-/**
- * WriteChannel()
- * Generic function that updates the channel value.
- * Can be called via various protocols
- */
-func WriteChannel(id string, bodyBytes []byte) ChannelWriteStatus {
-	var body map[string]interface{}
-	if err := json.Unmarshal(bodyBytes, &body); err != nil {
-		fmt.Println("Error unmarshaling body")
-	}
-
-	Db := db.MgoDb{}
-	Db.Init()
-	defer Db.Close()
-
-	// Check if someone is trying to change "id" key
-	// and protect us from this
-	s := ChannelWriteStatus{}
-	if _, ok := body["id"]; ok {
-		s.Nb = iris.StatusBadRequest
-		s.Str = "Invalid request: 'id' is read-only"
-		return s
-	}
-	if _, ok := body["device"]; ok {
-		println("Error: can not change device")
-		s.Nb = iris.StatusBadRequest
-		s.Str = "Invalid request: 'device' is read-only"
-		return s
-	}
-	if _, ok := body["created"]; ok {
-		println("Error: can not change device")
-		s.Nb = iris.StatusBadRequest
-		s.Str = "Invalid request: 'created' is read-only"
-		return s
-	}
-
-	senmlDecoder := gosenml.NewJSONDecoder()
-	m, _ := senmlDecoder.DecodeMessage(bodyBytes)
-	for _, e := range m.Entries {
-		// BaseName
-		e.Name = m.BaseName + e.Name
-
-		// BaseTime
-		e.Time = m.BaseTime + e.Time
-		if e.Time <= 0 {
-			e.Time += time.Now().Unix()
-		}
-
-		// BaseUnits
-		if e.Units == "" {
-			e.Units = m.BaseUnits
-		}
-
-		/** Insert entry in DB */
-		colQuerier := bson.M{"id": id}
-		change := bson.M{"$push": bson.M{"values": e}}
-		err := Db.C("channels").Update(colQuerier, change)
-		if err != nil {
-			log.Print(err)
-			s.Nb = iris.StatusNotFound
-			s.Str = "Not inserted"
-			return s
-		}
-	}
-
-	// Timestamp
-	t := time.Now().UTC().Format(time.RFC3339)
-	body["updated"] = t
-
-	/** Then update channel timestamp */
-	colQuerier := bson.M{"id": id}
-	change := bson.M{"$set": bson.M{"updated": body["updated"]}}
-	err := Db.C("channels").Update(colQuerier, change)
-	if err != nil {
-		log.Print(err)
-		s.Nb = iris.StatusNotFound
-		s.Str = "Not updated"
-		return s
-	}
-
-	s.Nb = iris.StatusOK
-	s.Str = "Updated"
-	return s
-}
-
-
 /**
  * UpdateChannel()
  */
@@ -222,7 +130,15 @@ func UpdateChannel(ctx *iris.Context) {
 
 	id := ctx.Param("channel_id")
 
-	status := WriteChannel(id, ctx.RequestCtx.Request.Body())
+
+	// Publish the channel update.
+	// This will be catched by the MQTT main client (subscribed to all channel topics)
+	// and then written in the DB in the MQTT handler
+	token := clients.MqttClient.Publish("mainflux/" + id, 0, false, string(ctx.RequestCtx.Request.Body()))
+	token.Wait()
+
+	// Wait on status from MQTT handler (which executes DB write)
+	status := <-clients.WriteStatusChannel
 	ctx.JSON(status.Nb, iris.Map{"response": status.Str})
 }
 

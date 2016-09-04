@@ -3,14 +3,34 @@ package clients
 import (
 	"fmt"
 	"strings"
+	"time"
+	"log"
+	"encoding/json"
+
+	"github.com/mainflux/mainflux-lite/db"
+
+	"github.com/krylovsk/gosenml"
+	"github.com/kataras/iris"
+	"gopkg.in/mgo.v2/bson"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/mainflux/mainflux-lite/routes"
 )
 
-type MqttConn struct {
-	Opts *mqtt.ClientOptions
-	Client mqtt.Client
-}
+type (
+	ChannelWriteStatus struct {
+		Nb int
+		Str string
+	}
+
+	MqttConn struct {
+		Opts *mqtt.ClientOptions
+		Client mqtt.Client
+	}
+)
+
+var (
+	MqttClient mqtt.Client
+	WriteStatusChannel chan ChannelWriteStatus
+)
 
 //define a function for the default message handler
 var msgHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
@@ -19,7 +39,10 @@ var msgHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) 
 
 	s := strings.Split(msg.Topic(), "/")
 	chanId := s[len(s)-1]
-	status := routes.WriteChannel(chanId, msg.Payload())
+	status := WriteChannel(chanId, msg.Payload())
+
+	// Send status to HTTP publisher 
+	WriteStatusChannel <- status
 
 	fmt.Println(status)
 }
@@ -39,7 +62,98 @@ func (mqc *MqttConn) MqttSub() {
 
 	// Subscribe to all channels of all the devices and request messages to be delivered
 	// at a maximum qos of zero, wait for the receipt to confirm the subscription
-	if token := mqc.Client.Subscribe("devices/+/channels/+", 0, nil); token.Wait() && token.Error() != nil {
+	// Topic is in the form:
+	// mainflux/<channel_id>
+	if token := mqc.Client.Subscribe("mainflux/+", 0, nil); token.Wait() && token.Error() != nil {
 		fmt.Println(token.Error())
 	}
+
+	MqttClient = mqc.Client
+	WriteStatusChannel = make(chan ChannelWriteStatus)
+}
+
+
+/**
+ * WriteChannel()
+ * Generic function that updates the channel value.
+ * Can be called via various protocols
+ */
+func WriteChannel(id string, bodyBytes []byte) ChannelWriteStatus {
+	var body map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &body); err != nil {
+		fmt.Println("Error unmarshaling body")
+	}
+
+	Db := db.MgoDb{}
+	Db.Init()
+	defer Db.Close()
+
+	// Check if someone is trying to change "id" key
+	// and protect us from this
+	s := ChannelWriteStatus{}
+	if _, ok := body["id"]; ok {
+		s.Nb = iris.StatusBadRequest
+		s.Str = "Invalid request: 'id' is read-only"
+		return s
+	}
+	if _, ok := body["device"]; ok {
+		println("Error: can not change device")
+		s.Nb = iris.StatusBadRequest
+		s.Str = "Invalid request: 'device' is read-only"
+		return s
+	}
+	if _, ok := body["created"]; ok {
+		println("Error: can not change device")
+		s.Nb = iris.StatusBadRequest
+		s.Str = "Invalid request: 'created' is read-only"
+		return s
+	}
+
+	senmlDecoder := gosenml.NewJSONDecoder()
+	m, _ := senmlDecoder.DecodeMessage(bodyBytes)
+	for _, e := range m.Entries {
+		// BaseName
+		e.Name = m.BaseName + e.Name
+
+		// BaseTime
+		e.Time = m.BaseTime + e.Time
+		if e.Time <= 0 {
+			e.Time += time.Now().Unix()
+		}
+
+		// BaseUnits
+		if e.Units == "" {
+			e.Units = m.BaseUnits
+		}
+
+		/** Insert entry in DB */
+		colQuerier := bson.M{"id": id}
+		change := bson.M{"$push": bson.M{"values": e}}
+		err := Db.C("channels").Update(colQuerier, change)
+		if err != nil {
+			log.Print(err)
+			s.Nb = iris.StatusNotFound
+			s.Str = "Not inserted"
+			return s
+		}
+	}
+
+	// Timestamp
+	t := time.Now().UTC().Format(time.RFC3339)
+	body["updated"] = t
+
+	/** Then update channel timestamp */
+	colQuerier := bson.M{"id": id}
+	change := bson.M{"$set": bson.M{"updated": body["updated"]}}
+	err := Db.C("channels").Update(colQuerier, change)
+	if err != nil {
+		log.Print(err)
+		s.Nb = iris.StatusNotFound
+		s.Str = "Not updated"
+		return s
+	}
+
+	s.Nb = iris.StatusOK
+	s.Str = "Updated"
+	return s
 }
