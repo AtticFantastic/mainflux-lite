@@ -38,9 +38,8 @@ Development documentation can be found on our [Mainflux GitHub Wiki](https://git
 Swagger-generated API reference can be foud at [http://mainflux.com/apidoc](http://mainflux.com/apidoc).
 
 ### Community
-#### Mailing lists
-- [mainflux-dev](https://groups.google.com/forum/#!forum/mainflux-dev) - developers related. This is discussion about development of Mainflux IoT cloud itself.
-- [mainflux-user](https://groups.google.com/forum/#!forum/mainflux-user) - general discussion and support. If you do not participate in development of Mainflux cloud infrastructure, this is probably what you're looking for.
+#### Mailing list
+- [mainflux](https://groups.google.com/forum/#!forum/mainflux)
 
 #### IRC
 [Mainflux Gitter](https://gitter.im/Mainflux/mainflux?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
