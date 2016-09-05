@@ -10,7 +10,7 @@ Mainflux Lite is the compact and simple single-binary server with Mainflux IoT f
 It is very useful for development, prototyping and quick and simple deployments - in situation where full-blown Mainflux system (based on plethora of microservices) is not needed.
 
 ### Installation
-Mainflux Lite uses [MongoDB](https://www.mongodb.com/), so insure that it is installed on your system (more info [here](https://github.com/Mainflux/mainflux-lite/blob/master/doc/dependencies.md)).
+Mainflux Lite uses [MongoDB](https://www.mongodb.com/), so insure that it is installed on your system (more info [here](https://github.com/Mainflux/mainflux-lite/blob/master/doc/dependencies.md)). You will also need MQTT broker running on default port 1883 - for example [Mosquitto](https://mosquitto.org/).
 
 Installing Mainflux Lite is trivial [`go get`](https://golang.org/cmd/go/):
 ```bash
@@ -21,6 +21,8 @@ $GOBIN/mainflux-lite
 If you are new to Go, more information about setting-up environment and fetching Mainflux Lite code can be found [here](https://github.com/Mainflux/mainflux-lite/blob/master/doc/install.md).
 
 ### Docker
+> Not currently functional - we need to add MQTT broker. Please use Go binary for now
+
 Running Mainflux Lite in a Docker container is equally trivial:
 ```
 wget https://raw.githubusercontent.com/Mainflux/mainflux-lite/master/docker-compose.yml
