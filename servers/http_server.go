@@ -40,6 +40,9 @@ func HttpServer(cfg config.Config) {
 
 	// start the server
 	iris.Listen(cfg.HttpHost + ":" + strconv.Itoa(cfg.HttpPort))
+
+	// Use following to start HTTPS server on the same port
+	//iris.ListenTLS(cfg.HttpHost + ":" + strconv.Itoa(cfg.HttpPort), "tls/mainflux.crt", "tls/mainflux.key")
 }
 
 func registerRoutes() {
