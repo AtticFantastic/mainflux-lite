@@ -24,7 +24,7 @@ func HttpServer(cfg config.Config) {
 	iris.Config.DisableBanner = true
 
 	// set the global middlewares
-	iris.Use(logger.New(iris.Logger))
+	iris.Use(logger.New())
 
 	// set the custom errors
 	iris.OnError(iris.StatusNotFound, func(ctx *iris.Context) {
