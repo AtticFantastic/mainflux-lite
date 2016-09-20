@@ -11,7 +11,7 @@ package servers
 import (
 	"strconv"
 
-	"github.com/mainflux/mainflux-lite/routes"
+	"github.com/mainflux/mainflux-lite/controllers"
 	"github.com/mainflux/mainflux-lite/config"
 
 	"github.com/iris-contrib/middleware/logger"
@@ -47,23 +47,23 @@ func HttpServer(cfg config.Config) {
 
 func registerRoutes() {
 	// STATUS
-	iris.Get("/status", routes.GetStatus)
+	iris.Get("/status", controllers.GetStatus)
 
 	// DEVICES
-	iris.Post("/devices", routes.CreateDevice)
-	iris.Get("/devices", routes.GetDevices)
+	iris.Post("/devices", controllers.CreateDevice)
+	iris.Get("/devices", controllers.GetDevices)
 
-	iris.Get("/devices/:device_id", routes.GetDevice)
-	iris.Put("/devices/:device_id", routes.UpdateDevice)
+	iris.Get("/devices/:device_id", controllers.GetDevice)
+	iris.Put("/devices/:device_id", controllers.UpdateDevice)
 
-	iris.Delete("/devices/:device_id", routes.DeleteDevice)
+	iris.Delete("/devices/:device_id", controllers.DeleteDevice)
 
 	// CHANNELS
-	iris.Post("/devices/:device_id/channels", routes.CreateChannel)
-	iris.Get("/devices/:device_id/channels", routes.GetChannels)
+	iris.Post("/devices/:device_id/channels", controllers.CreateChannel)
+	iris.Get("/devices/:device_id/channels", controllers.GetChannels)
 
-	iris.Get("/devices/:device_id/channels/:channel_id", routes.GetChannel)
-	iris.Put("/devices/:device_id/channels/:channel_id", routes.UpdateChannel)
+	iris.Get("/devices/:device_id/channels/:channel_id", controllers.GetChannel)
+	iris.Put("/devices/:device_id/channels/:channel_id", controllers.UpdateChannel)
 
-	iris.Delete("/devices/:device_id/channels/:channel_id", routes.DeleteChannel)
+	iris.Delete("/devices/:device_id/channels/:channel_id", controllers.DeleteChannel)
 }

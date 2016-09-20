@@ -6,7 +6,7 @@
  * See the included LICENSE file for more details.
  */
 
-package routes
+package controllers
 
 import (
 	"encoding/json"

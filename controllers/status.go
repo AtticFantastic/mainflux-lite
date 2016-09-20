@@ -5,7 +5,7 @@
  * All rights not explicitly granted in the Apache license, version 2.0 are reserved.
  * See the included LICENSE file for more details.
  */
-package routes
+package controllers
 
 import (
 	"github.com/kataras/iris"
